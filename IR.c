@@ -697,7 +697,7 @@ InterCodes translate_Args(NodePtr node, Operand *arg_list, int *arg_num) {
 				//if(t1->flag == 1)
 				//	t1 = OP_TEMP;
 				t1->flag = 1;
-				printf("t%d\n", t1->u.temp_no);
+				//printf("t%d\n", t1->u.temp_no);
 				arg_list[(*arg_num)++] = t1;
 				return code1;
 			}
@@ -719,7 +719,7 @@ InterCodes translate_Args(NodePtr node, Operand *arg_list, int *arg_num) {
 				Operand t1 = new_temp();
 				code1 = gen_assign(IR_ASSIGN, t1, r1);
 				t1->flag = 1;
-				printf("t%d\n", t1->u.temp_no);
+				//printf("t%d\n", t1->u.temp_no);
 				arg_list[(*arg_num)++] = t1;
 			}
 			else{
@@ -791,6 +791,11 @@ InterCodes translate_Fundec(NodePtr node) {
 		while(param != NULL){
 			//Operand p1 = new_param(param->name);
 			//if(param->type->kind == basic)
+			if(param->type->kind == array){
+				printf("Can not translate the code: \n");
+				printf("Contain multidimensional array and function parameters of array type!\n");
+				exit(-1);
+			}
 			Operand p1 = new_variable(param->id);
 			code2 = gen_uniop(IR_PARAM, p1);
 			code1 = link_ir(code1, code2);

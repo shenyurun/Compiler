@@ -1,22 +1,117 @@
+FUNCTION distance :
+PARAM v5
+PARAM v6
+t8 := v5 + #4
+t10 := #0 * #4
+t6 := t8 + t10
+t11 := v6 + #4
+t13 := #0 * #4
+t7 := t11 + t13
+t4 := *t6 - *t7
+t16 := v5 + #4
+t18 := #0 * #4
+t14 := t16 + t18
+t19 := v6 + #4
+t21 := #0 * #4
+t15 := t19 + t21
+t5 := *t14 - *t15
+t2 := t4 * t5
+t26 := v5 + #4
+t28 := #1 * #4
+t24 := t26 + t28
+t29 := v6 + #4
+t31 := #1 * #4
+t25 := t29 + t31
+t22 := *t24 - *t25
+t34 := v5 + #4
+t36 := #1 * #4
+t32 := t34 + t36
+t37 := v6 + #4
+t39 := #1 * #4
+t33 := t37 + t39
+t23 := *t32 - *t33
+t3 := t22 * t23
+t1 := t2 + t3
+v7 := t1
+RETURN v7
 FUNCTION main :
-DEC v1 12
-t3 := #0 * #4
-t1 := &v1 + t3
-t4 := #1
-*t1 := t4
-t7 := #1 * #4
-t5 := &v1 + t7
-t8 := #2
-*t5 := t8
-t11 := #2 * #4
-t9 := &v1 + t11
-t16 := #0 * #4
-t13 := &v1 + t16
-t18 := #1 * #4
-t14 := &v1 + t18
-t12 := *t13 + *t14
-*t9 := t12
-t21 := #2 * #4
-t19 := &v1 + t21
-WRITE *t19
+DEC v8 48
+DEC v9 12
+t41 := #0
+v10 := t41
+t42 := #1
+v11 := t42
+LABEL label1 :
+IF v10 < #4 GOTO label2
+GOTO label3
+LABEL label2 :
+t48 := v10 * #12
+t46 := &v8 + t48
+t45 := t46 + #0
+t49 := v10 + #1
+*t45 := t49
+t56 := v10 * #12
+t54 := &v8 + t56
+t53 := t54 + #4
+t58 := #0 * #4
+t52 := t53 + t58
+t59 := v10 * #3
+*t52 := t59
+t66 := v10 * #12
+t64 := &v8 + t66
+t63 := t64 + #4
+t68 := #1 * #4
+t62 := t63 + t68
+t69 := v10 * #3
+*t62 := t69
+t72 := v10 + #1
+v10 := t72
+GOTO label1
+LABEL label3 :
+t75 := &v9 + #0
+t76 := #5
+*t75 := t76
+t78 := &v9 + #4
+t80 := #0 * #4
+t77 := t78 + t80
+t81 := #4
+*t77 := t81
+t83 := &v9 + #4
+t85 := #1 * #4
+t82 := t83 + t85
+t86 := #5
+*t82 := t86
+t88 := &v9
+t91 := #0 * #12
+t89 := &v8 + t91
+ARG t89
+ARG t88
+v12 := CALL distance
+t92 := #0
+v13 := t92
+LABEL label4 :
+IF v11 < #4 GOTO label5
+GOTO label6
+LABEL label5 :
+t96 := &v9
+t99 := v11 * #12
+t97 := &v8 + t99
+ARG t97
+ARG t96
+v14 := CALL distance
+IF v14 < v12 GOTO label7
+GOTO label8
+LABEL label7 :
+t102 := v14
+v12 := t102
+t106 := v11 * #12
+t104 := &v8 + t106
+t103 := t104 + #0
+v13 := *t103
+LABEL label8 :
+t107 := v11 + #1
+v11 := t107
+GOTO label4
+LABEL label6 :
+WRITE v13
 RETURN #0

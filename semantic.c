@@ -398,7 +398,7 @@ TypePtr specifier_handler(NodePtr node){
 
 TypePtr structspecifier_handler(NodePtr node){
 	NodePtr child = node->first_child;
-	if(strcmp(child->next_sibling->content.name, "OptTag") == 0){
+	if(strcmp(child->next_sibling->content.name, "OptTag") == 0 || strcmp(child->next_sibling->content.name, "null") == 0){
 		FieldList struct_node = (FieldList)malloc(sizeof(struct FieldList_));
 		FieldList *list = (FieldList *)malloc(20 * sizeof(FieldList));
 		TypePtr type = (TypePtr)malloc(sizeof(struct Type_));
@@ -417,7 +417,8 @@ TypePtr structspecifier_handler(NodePtr node){
 			if (child->next_sibling->first_child != NULL)
 				strcpy(struct_node->name, child->next_sibling->first_child->content.str_value);
 			else
-				strcpy(struct_node->name, (char *)struct_id+1);
+				//strcpy(struct_node->name, (char *)struct_id+1);
+				sprintf(struct_node->name, "%d", ++struct_id);
 			if(hash_get(struct_node->name) != NULL){
 				printf("Error type 16 at line %d: Duplicated name '%s'\n", child->content.lineno, struct_node->name);
 				return NULL;
@@ -608,9 +609,9 @@ int declist_handler(NodePtr node, TypePtr type, FieldList *list, int tail, int f
 		return dec_handler(child, type, list, tail, flag);
 	}
 	else if(strcmp(child->next_sibling->content.name, "COMMA") == 0){  
-		dec_handler(child, type, list, tail, flag);
+		tail = dec_handler(child, type, list, tail, flag);
 		//declist_handler
-		return declist_handler(child->next_sibling->next_sibling, type, list, tail+1, flag);
+		return declist_handler(child->next_sibling->next_sibling, type, list, tail, flag);
 	}
 	else{
 		printf("Wrong with DecList\n");

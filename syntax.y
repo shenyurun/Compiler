@@ -398,9 +398,10 @@ Args		:	Exp COMMA Args{
 
 %%
 
+
 int gen_ir(NodePtr node , int level){
 	InterCodes icode;
-	if(level == 0) printf("------------------------\n");
+	//if(level == 0) printf("------------------------\n");
 	if(strcmp(node->content.name, "null") == 0) return 0;
 	else if(strcmp(node->content.name, "Exp") == 0){
 		icode = translate_Exp(node, NULL);
@@ -419,6 +420,7 @@ int gen_ir(NodePtr node , int level){
 	}
 	return 1;
 }
+
 
 int semantic(NodePtr node, int level){
 	int num;
@@ -577,7 +579,6 @@ int main(int argc, char** argv) {
 		traverse(&gen_ir, root, 0);
 		optimize_ir(&irtable);
 		optimize_ir(&irtable);
-		if(irtable == NULL) printf("???\n");
 		output_ir(irtable);
 	}
 }
