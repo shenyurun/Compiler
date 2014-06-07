@@ -29,8 +29,11 @@ void output_operand(Operand op) {
 	case OP_REFERENCE:
 		fprintf(fp, "&v%d", op->u.var_no);
 		break;
-	case OP_ADDRESS:	
-		fprintf(fp, "*t%d", op->u.temp_no);
+	case OP_ADDRESS:
+		//if(op->flag == 1)
+		//	fprintf(fp, "t%d", op->u.temp_no);
+		//else		
+			fprintf(fp, "*t%d", op->u.temp_no);
 		break;
 	case OP_LABEL:
 		fprintf(fp, "label%d", op->u.label_no);
@@ -502,8 +505,7 @@ InterCodes translate_Exp(NodePtr node, Operand place) {
 			return code1;
 		}
 		int i;
-		//for(i=arg_num-1; i>=0; i--){
-		for(i=0; i<arg_num; i++){
+		for(i=arg_num-1; i>=0; i--){
 			code2 = gen_uniop(IR_ARG, arg_list[i]);
 			code1 = link_ir(code1, code2);
 		}
@@ -701,7 +703,8 @@ InterCodes translate_Args(NodePtr node, Operand *arg_list, int *arg_num) {
 		}
 		Operand t1 = new_temp();
 		code1 = translate_Exp(child, t1);
-		if(t1->kind == OP_ADDRESS && t1->flag != 2){		
+		if(t1->kind == OP_ADDRESS){
+			printf("???\n");		
 			t1->flag = 1;
 		}
 		arg_list[(*arg_num)++] = t1;
@@ -997,14 +1000,11 @@ InterCodes translate_array(NodePtr node, Operand place, TypePtr *list){
 			t1 = new_variable(id_node->id);
 		else
 			t1 = new_reference(id_node->id);
-		if(id_node->type->u.array.elem->kind == structure){
+		if(id_node->type->u.array.elem->kind == structure)
 			size = get_structure_size(id_node->type->u.array.elem);
-			//place->kind = OP_ADDRESS;
-		}
-		else if(id_node->type->u.array.elem->kind == basic){
+		else
 			size = 4;
-			place->flag = 2;//array element is basic
-		}
+		//TODO
 		if(list != NULL)
 			*list = id_node->type->u.array.elem;
 	}
@@ -1014,8 +1014,8 @@ InterCodes translate_array(NodePtr node, Operand place, TypePtr *list){
 		code1 = translate_structure(child, t1, &id_node);
 		t1->kind = OP_TEMP;
 		size = get_structure_size(id_node->type->u.array.elem);
-		if(size == 4)
-			place->flag = 2;//array element is basic
+		//printf("Size: %d\n", size);
+		//TODO
 		if(list != NULL)
 			*list = id_node->type->u.array.elem;
 	}
@@ -1037,7 +1037,7 @@ InterCodes translate_array(NodePtr node, Operand place, TypePtr *list){
 	Operand t4 = new_temp_id(place->u.temp_no);
 	code4 = gen_binop(IR_ADD, t4, t1, t3);
 	code1 = link_ir(code1, code4);
-	place->kind = OP_ADDRESS;
+	//place->kind = OP_ADDRESS;
 	return code1;
 }
 
@@ -1048,7 +1048,6 @@ int optimize_ir(InterCodes *ir) {
 	Operand op1, op2, op3, op4;
 	int *labellist = (int *)malloc(sizeof(int) * 20);
 	int value;
-	char *name;
 	int count = 0;
 
 	if(ir == NULL || *ir == NULL)
@@ -1158,37 +1157,34 @@ int optimize_ir(InterCodes *ir) {
 		case IR_WRITE:
 			op1 = curcode->code->u.uniop.op;
 			if(op1->kind == OP_TEMP){
-				prevcode = *ir;
-				while(prevcode != curcode){
-					if(prevcode->code->kind == IR_ASSIGN){
-						op2 = prevcode->code->u.assign.left;
-						if(op2->kind == OP_TEMP && op2->u.temp_no == op1->u.temp_no){
-							curcode->code->u.uniop.op = prevcode->code->u.assign.right;
+				prevcode = curcode->prev;
+				if(prevcode->code->kind == IR_ASSIGN){
+					op2 = prevcode->code->u.assign.left;
+					if(op2->kind == OP_TEMP && op2->u.temp_no == op1->u.temp_no){
+						curcode->code->u.uniop.op = prevcode->code->u.assign.right;
+						remove_ir(ir, prevcode);
+					}
+				}
+				else if(prevcode->code->kind == IR_ADD || prevcode->code->kind == IR_SUB ||
+					prevcode->code->kind == IR_MUL || prevcode->code->kind == IR_DIV){
+					op2 = prevcode->code->u.binop.op1;
+					op3 = prevcode->code->u.binop.op2;
+					if(op2->kind == OP_CONSTANT && op3->kind == OP_CONSTANT){
+						if(prevcode->code->kind == IR_ADD)
+							value = op2->u.value + op3->u.value;
+						else if(prevcode->code->kind == IR_SUB)
+							value = op2->u.value - op3->u.value;
+						else if(prevcode->code->kind == IR_MUL)
+							value = op2->u.value * op3->u.value;
+						else
+							value = op2->u.value / op3->u.value;
+						op4 = prevcode->code->u.binop.result;
+						if(op4->kind = OP_TEMP && op4->u.temp_no == op1->u.temp_no){
+							curcode->code->u.uniop.op->kind = OP_CONSTANT;
+							curcode->code->u.uniop.op->u.value = value;
 							remove_ir(ir, prevcode);
 						}
 					}
-					else if(prevcode->code->kind == IR_ADD || prevcode->code->kind == IR_SUB ||
-						prevcode->code->kind == IR_MUL || prevcode->code->kind == IR_DIV){
-						op2 = prevcode->code->u.binop.op1;
-						op3 = prevcode->code->u.binop.op2;
-						if(op2->kind == OP_CONSTANT && op3->kind == OP_CONSTANT){
-							if(prevcode->code->kind == IR_ADD)
-								value = op2->u.value + op3->u.value;
-							else if(prevcode->code->kind == IR_SUB)
-								value = op2->u.value - op3->u.value;
-							else if(prevcode->code->kind == IR_MUL)
-								value = op2->u.value * op3->u.value;
-							else
-								value = op2->u.value / op3->u.value;
-							op4 = prevcode->code->u.binop.result;
-							if(op4->kind = OP_TEMP && op4->u.temp_no == op1->u.temp_no){
-								curcode->code->u.uniop.op->kind = OP_CONSTANT;
-								curcode->code->u.uniop.op->u.value = value;
-								remove_ir(ir, prevcode);
-							}
-						}
-					}
-					prevcode = prevcode->next;
 				}
 			}
 			break;
@@ -1249,33 +1245,6 @@ int optimize_ir(InterCodes *ir) {
 		case IR_DEC:
 			break;
 		case IR_FUNCTION:
-			name = curcode->code->u.uniop.op->u.func_name;
-			prevcode = curcode->prev;
-			if(prevcode != NULL && prevcode->code->kind == IR_LABEL){
-				assert(prevcode->code->u.uniop.op->kind == OP_LABEL);
-				value = prevcode->code->u.uniop.op->u.label_no;
-				remove_ir(ir, prevcode);
-				//prevcode = prevcode->prev;
-				prevcode = *ir;
-				while(prevcode != curcode){
-					int i;
-					if(prevcode->code->kind == IR_GOTO){
-						if(prevcode->code->u.uniop.op->u.label_no == value){
-							prevcode->code->u.uniop.op->kind = OP_FUNCTION;
-							prevcode->code->u.uniop.op->u.func_name = name;
-							break;
-						}
-					}
-					else if(prevcode->code->kind == IR_RELOP){
-						if(prevcode->code->u.cond.label->u.label_no == value){
-							prevcode->code->u.cond.label->kind = OP_FUNCTION;
-							prevcode->code->u.cond.label->u.func_name = name;
-							break;
-						}
-					}
-					prevcode = prevcode->next;
-				}
-			}
 			break;
 		case IR_PARAM:
 			break;

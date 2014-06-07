@@ -1,0 +1,9 @@
+int func(int a[]){
+
+}
+
+int main(){
+	int b[10];
+	func(b);
+	return 0;
+}

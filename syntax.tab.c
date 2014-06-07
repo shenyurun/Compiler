@@ -2714,6 +2714,8 @@ int main(int argc, char** argv) {
 		optimize_ir(&irtable);
 		optimize_ir(&irtable);
 		output_ir(irtable);
+		//output_read_write();
+		gen_mips(irtable);
 	}
 }
 

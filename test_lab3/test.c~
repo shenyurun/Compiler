@@ -1,0 +1,23 @@
+struct Orange{
+	int org1[10];
+	int org2[10];
+};
+
+struct Banana{
+	struct Orange bnn[9];
+};
+
+struct Apple{
+	struct Banana app;
+};
+
+int func(int i){
+	write(i);
+}
+
+int main(){
+	struct Apple a[10];
+	a[1].app.bnn[2].org2[7] = 1;
+	func(a[1].app.bnn[2].org2[7]);
+	return 0;
+}
