@@ -78,12 +78,13 @@
 #include "hash_table.h"
 #include "assert.h"
 #include "IR.h"
+#include "mips.h"
 //global table
 InterCodes irtable = NULL;
 
 
 /* Line 268 of yacc.c  */
-#line 87 "syntax.tab.c"
+#line 88 "syntax.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -150,7 +151,7 @@ typedef union YYSTYPE
 {
 
 /* Line 293 of yacc.c  */
-#line 17 "syntax.y"
+#line 18 "syntax.y"
 
 	int int_value;
 	float float_value;
@@ -160,7 +161,7 @@ typedef union YYSTYPE
 
 
 /* Line 293 of yacc.c  */
-#line 164 "syntax.tab.c"
+#line 165 "syntax.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -185,7 +186,7 @@ typedef struct YYLTYPE
 
 
 /* Line 343 of yacc.c  */
-#line 189 "syntax.tab.c"
+#line 190 "syntax.tab.c"
 
 #ifdef short
 # undef short
@@ -503,13 +504,13 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    61,    61,    68,    73,    79,    84,    89,    94,    99,
-     101,   106,   114,   119,   125,   130,   136,   141,   147,   155,
-     160,   166,   171,   176,   178,   183,   189,   197,   202,   204,
-     209,   215,   220,   225,   230,   235,   240,   245,   252,   257,
-     263,   268,   270,   275,   281,   286,   294,   299,   304,   309,
-     314,   319,   324,   329,   334,   339,   344,   349,   354,   359,
-     364,   369,   374,   379,   384,   385,   387,   392
+       0,    62,    62,    69,    74,    80,    85,    90,    95,   100,
+     102,   107,   115,   120,   126,   131,   137,   142,   148,   156,
+     161,   167,   172,   177,   179,   184,   190,   198,   203,   205,
+     210,   216,   221,   226,   231,   236,   241,   246,   253,   258,
+     264,   269,   271,   276,   282,   287,   295,   300,   305,   310,
+     315,   320,   325,   330,   335,   340,   345,   350,   355,   360,
+     365,   370,   375,   380,   385,   386,   388,   393
 };
 #endif
 
@@ -1592,7 +1593,7 @@ yyreduce:
         case 2:
 
 /* Line 1806 of yacc.c  */
-#line 61 "syntax.y"
+#line 62 "syntax.y"
     {
 				//printf("Program -> ExtDefList\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1604,7 +1605,7 @@ yyreduce:
   case 3:
 
 /* Line 1806 of yacc.c  */
-#line 68 "syntax.y"
+#line 69 "syntax.y"
     {
 				//printf("ExtDefList -> ExtDef ExtDefList\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1615,7 +1616,7 @@ yyreduce:
   case 4:
 
 /* Line 1806 of yacc.c  */
-#line 73 "syntax.y"
+#line 74 "syntax.y"
     {
 				//printf("ExtDefList -> NULL\n");
 				(yyval.node_value) = create_tree(1, NULL);
@@ -1626,7 +1627,7 @@ yyreduce:
   case 5:
 
 /* Line 1806 of yacc.c  */
-#line 79 "syntax.y"
+#line 80 "syntax.y"
     {
 				//printf("ExtDef -> Specifier ExtDecList SEMI\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1637,7 +1638,7 @@ yyreduce:
   case 6:
 
 /* Line 1806 of yacc.c  */
-#line 84 "syntax.y"
+#line 85 "syntax.y"
     {
 				//printf("ExtDef -> Specifier SEMI\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1648,7 +1649,7 @@ yyreduce:
   case 7:
 
 /* Line 1806 of yacc.c  */
-#line 89 "syntax.y"
+#line 90 "syntax.y"
     {
 				//printf("ExtDef -> Specifier FunDec CompSt\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1659,7 +1660,7 @@ yyreduce:
   case 8:
 
 /* Line 1806 of yacc.c  */
-#line 94 "syntax.y"
+#line 95 "syntax.y"
     {
 				//printf("ExtDef -> Specifier FunDec CompSt\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1670,14 +1671,14 @@ yyreduce:
   case 9:
 
 /* Line 1806 of yacc.c  */
-#line 99 "syntax.y"
+#line 100 "syntax.y"
     {}
     break;
 
   case 10:
 
 /* Line 1806 of yacc.c  */
-#line 101 "syntax.y"
+#line 102 "syntax.y"
     {
 				//printf("ExtDecList -> VarDec\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1688,7 +1689,7 @@ yyreduce:
   case 11:
 
 /* Line 1806 of yacc.c  */
-#line 106 "syntax.y"
+#line 107 "syntax.y"
     {
 				//printf("ExtDecList -> VarDec COMMA ExtDecList\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1699,7 +1700,7 @@ yyreduce:
   case 12:
 
 /* Line 1806 of yacc.c  */
-#line 114 "syntax.y"
+#line 115 "syntax.y"
     {
 				//printf("Specifier -> TYPE(%s)\n", $1->content.str_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1710,7 +1711,7 @@ yyreduce:
   case 13:
 
 /* Line 1806 of yacc.c  */
-#line 119 "syntax.y"
+#line 120 "syntax.y"
     {
 				//printf("Specifier -> StructSpecifier\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1721,7 +1722,7 @@ yyreduce:
   case 14:
 
 /* Line 1806 of yacc.c  */
-#line 125 "syntax.y"
+#line 126 "syntax.y"
     {
 				//printf("StructSpecifier -> STRUCT OptTag LC DefList RC\n"); 
 				(yyval.node_value) = create_tree(5, (yyvsp[(1) - (5)].node_value), (yyvsp[(2) - (5)].node_value), (yyvsp[(3) - (5)].node_value), (yyvsp[(4) - (5)].node_value), (yyvsp[(5) - (5)].node_value));
@@ -1732,7 +1733,7 @@ yyreduce:
   case 15:
 
 /* Line 1806 of yacc.c  */
-#line 130 "syntax.y"
+#line 131 "syntax.y"
     {
 				//printf("StructSpecifier -> STRUCT Tag\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1743,7 +1744,7 @@ yyreduce:
   case 16:
 
 /* Line 1806 of yacc.c  */
-#line 136 "syntax.y"
+#line 137 "syntax.y"
     {
 				//printf("OptTag -> ID(%s)\n", $1->content.str_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1754,7 +1755,7 @@ yyreduce:
   case 17:
 
 /* Line 1806 of yacc.c  */
-#line 141 "syntax.y"
+#line 142 "syntax.y"
     {
 				//printf("OptTag -> NULL\n");
 				(yyval.node_value) = create_tree(1, NULL);
@@ -1765,7 +1766,7 @@ yyreduce:
   case 18:
 
 /* Line 1806 of yacc.c  */
-#line 147 "syntax.y"
+#line 148 "syntax.y"
     {
 				//printf("Tag -> ID(%s)\n", $1->content.str_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1776,7 +1777,7 @@ yyreduce:
   case 19:
 
 /* Line 1806 of yacc.c  */
-#line 155 "syntax.y"
+#line 156 "syntax.y"
     {
 				//printf("VarDec -> ID(%s)\n", $1->content.str_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1787,7 +1788,7 @@ yyreduce:
   case 20:
 
 /* Line 1806 of yacc.c  */
-#line 160 "syntax.y"
+#line 161 "syntax.y"
     {
 				//printf("VarDec -> VarDec LB INT RB\n");
 				(yyval.node_value) = create_tree(4, (yyvsp[(1) - (4)].node_value), (yyvsp[(2) - (4)].node_value), (yyvsp[(3) - (4)].node_value), (yyvsp[(4) - (4)].node_value));
@@ -1798,7 +1799,7 @@ yyreduce:
   case 21:
 
 /* Line 1806 of yacc.c  */
-#line 166 "syntax.y"
+#line 167 "syntax.y"
     {
 				//printf("FunDec -> ID LP VarList RP\n");
 				(yyval.node_value) = create_tree(4, (yyvsp[(1) - (4)].node_value), (yyvsp[(2) - (4)].node_value), (yyvsp[(3) - (4)].node_value), (yyvsp[(4) - (4)].node_value));
@@ -1809,7 +1810,7 @@ yyreduce:
   case 22:
 
 /* Line 1806 of yacc.c  */
-#line 171 "syntax.y"
+#line 172 "syntax.y"
     {
 				//printf("FunDec -> ID LP RP\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1820,14 +1821,14 @@ yyreduce:
   case 23:
 
 /* Line 1806 of yacc.c  */
-#line 176 "syntax.y"
+#line 177 "syntax.y"
     {}
     break;
 
   case 24:
 
 /* Line 1806 of yacc.c  */
-#line 178 "syntax.y"
+#line 179 "syntax.y"
     {
 				//printf("VarList -> ParamDec COMMA VarList\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1838,7 +1839,7 @@ yyreduce:
   case 25:
 
 /* Line 1806 of yacc.c  */
-#line 183 "syntax.y"
+#line 184 "syntax.y"
     {
 				//printf("VarList -> ParamDec\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1849,7 +1850,7 @@ yyreduce:
   case 26:
 
 /* Line 1806 of yacc.c  */
-#line 189 "syntax.y"
+#line 190 "syntax.y"
     {
 				//printf("ParamDec -> Specifier VarDec\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1860,7 +1861,7 @@ yyreduce:
   case 27:
 
 /* Line 1806 of yacc.c  */
-#line 197 "syntax.y"
+#line 198 "syntax.y"
     {
 				//printf("CompSt -> LC DefList StmtList RC\n");
 				(yyval.node_value) = create_tree(4, (yyvsp[(1) - (4)].node_value), (yyvsp[(2) - (4)].node_value), (yyvsp[(3) - (4)].node_value), (yyvsp[(4) - (4)].node_value));
@@ -1871,14 +1872,14 @@ yyreduce:
   case 28:
 
 /* Line 1806 of yacc.c  */
-#line 202 "syntax.y"
+#line 203 "syntax.y"
     {}
     break;
 
   case 29:
 
 /* Line 1806 of yacc.c  */
-#line 204 "syntax.y"
+#line 205 "syntax.y"
     {
 				//printf("StmtList -> Stmt StmtList\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1889,7 +1890,7 @@ yyreduce:
   case 30:
 
 /* Line 1806 of yacc.c  */
-#line 209 "syntax.y"
+#line 210 "syntax.y"
     {
 				//printf("StmtList -> NULL\n");
 				(yyval.node_value) = create_tree(1, NULL);
@@ -1900,7 +1901,7 @@ yyreduce:
   case 31:
 
 /* Line 1806 of yacc.c  */
-#line 215 "syntax.y"
+#line 216 "syntax.y"
     {
 				//printf("Stmt -> Exp SEMI\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1911,7 +1912,7 @@ yyreduce:
   case 32:
 
 /* Line 1806 of yacc.c  */
-#line 220 "syntax.y"
+#line 221 "syntax.y"
     {
 				//printf("Stmt -> CompSt\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -1922,7 +1923,7 @@ yyreduce:
   case 33:
 
 /* Line 1806 of yacc.c  */
-#line 225 "syntax.y"
+#line 226 "syntax.y"
     {
 				//printf("Stmt -> RETURN Exp SEMI\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -1933,7 +1934,7 @@ yyreduce:
   case 34:
 
 /* Line 1806 of yacc.c  */
-#line 230 "syntax.y"
+#line 231 "syntax.y"
     {
 				//printf("Stmt -> IF LP Exp RP Stmt\n");
 				(yyval.node_value) = create_tree(5, (yyvsp[(1) - (5)].node_value), (yyvsp[(2) - (5)].node_value), (yyvsp[(3) - (5)].node_value), (yyvsp[(4) - (5)].node_value), (yyvsp[(5) - (5)].node_value));
@@ -1944,7 +1945,7 @@ yyreduce:
   case 35:
 
 /* Line 1806 of yacc.c  */
-#line 235 "syntax.y"
+#line 236 "syntax.y"
     {
 				//printf("Stmt -> IF LP Exp RP Stmt ELSE Stmt\n");
 				(yyval.node_value) = create_tree(7, (yyvsp[(1) - (7)].node_value), (yyvsp[(2) - (7)].node_value), (yyvsp[(3) - (7)].node_value), (yyvsp[(4) - (7)].node_value), (yyvsp[(5) - (7)].node_value), (yyvsp[(6) - (7)].node_value), (yyvsp[(7) - (7)].node_value));
@@ -1955,7 +1956,7 @@ yyreduce:
   case 36:
 
 /* Line 1806 of yacc.c  */
-#line 240 "syntax.y"
+#line 241 "syntax.y"
     {
 				//printf("Stmt -> WHILE LP Exp RP Stmt\n");
 				(yyval.node_value) = create_tree(5, (yyvsp[(1) - (5)].node_value), (yyvsp[(2) - (5)].node_value), (yyvsp[(3) - (5)].node_value), (yyvsp[(4) - (5)].node_value), (yyvsp[(5) - (5)].node_value));
@@ -1966,14 +1967,14 @@ yyreduce:
   case 37:
 
 /* Line 1806 of yacc.c  */
-#line 245 "syntax.y"
+#line 246 "syntax.y"
     {}
     break;
 
   case 38:
 
 /* Line 1806 of yacc.c  */
-#line 252 "syntax.y"
+#line 253 "syntax.y"
     {
 				//printf("DefList -> Def DefList\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -1984,7 +1985,7 @@ yyreduce:
   case 39:
 
 /* Line 1806 of yacc.c  */
-#line 257 "syntax.y"
+#line 258 "syntax.y"
     {
 				//printf("DefList -> NULL\n");
 				(yyval.node_value) = create_tree(1, NULL);
@@ -1995,7 +1996,7 @@ yyreduce:
   case 40:
 
 /* Line 1806 of yacc.c  */
-#line 263 "syntax.y"
+#line 264 "syntax.y"
     {
 				//printf("Def -> Specifier DecList SEMI\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2006,14 +2007,14 @@ yyreduce:
   case 41:
 
 /* Line 1806 of yacc.c  */
-#line 268 "syntax.y"
+#line 269 "syntax.y"
     {}
     break;
 
   case 42:
 
 /* Line 1806 of yacc.c  */
-#line 270 "syntax.y"
+#line 271 "syntax.y"
     {
 				//printf("DecList -> Dec\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2024,7 +2025,7 @@ yyreduce:
   case 43:
 
 /* Line 1806 of yacc.c  */
-#line 275 "syntax.y"
+#line 276 "syntax.y"
     {
 				//printf("DecList -> Dec COMMA DecList\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2035,7 +2036,7 @@ yyreduce:
   case 44:
 
 /* Line 1806 of yacc.c  */
-#line 281 "syntax.y"
+#line 282 "syntax.y"
     {
 				//printf("Dec -> VarDec\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2046,7 +2047,7 @@ yyreduce:
   case 45:
 
 /* Line 1806 of yacc.c  */
-#line 286 "syntax.y"
+#line 287 "syntax.y"
     {
 				//printf("Dec -> VarDec ASSIGNOP Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2057,7 +2058,7 @@ yyreduce:
   case 46:
 
 /* Line 1806 of yacc.c  */
-#line 294 "syntax.y"
+#line 295 "syntax.y"
     {
 				//printf("Exp -> Exp ASSIGNOP Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2068,7 +2069,7 @@ yyreduce:
   case 47:
 
 /* Line 1806 of yacc.c  */
-#line 299 "syntax.y"
+#line 300 "syntax.y"
     {
 				//printf("Exp -> Exp AND Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2079,7 +2080,7 @@ yyreduce:
   case 48:
 
 /* Line 1806 of yacc.c  */
-#line 304 "syntax.y"
+#line 305 "syntax.y"
     {
 				//printf("Exp -> Exp OR Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2090,7 +2091,7 @@ yyreduce:
   case 49:
 
 /* Line 1806 of yacc.c  */
-#line 309 "syntax.y"
+#line 310 "syntax.y"
     {
 				//printf("Exp -> Exp RELOP Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2101,7 +2102,7 @@ yyreduce:
   case 50:
 
 /* Line 1806 of yacc.c  */
-#line 314 "syntax.y"
+#line 315 "syntax.y"
     {
 				//printf("Exp -> Exp PLUS Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2112,7 +2113,7 @@ yyreduce:
   case 51:
 
 /* Line 1806 of yacc.c  */
-#line 319 "syntax.y"
+#line 320 "syntax.y"
     {
 				//printf("Exp -> Exp MINUS Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2123,7 +2124,7 @@ yyreduce:
   case 52:
 
 /* Line 1806 of yacc.c  */
-#line 324 "syntax.y"
+#line 325 "syntax.y"
     {
 				//printf("Exp -> Exp STAR Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2134,7 +2135,7 @@ yyreduce:
   case 53:
 
 /* Line 1806 of yacc.c  */
-#line 329 "syntax.y"
+#line 330 "syntax.y"
     {
 				//printf("Exp -> Exp DIV Exp\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2145,7 +2146,7 @@ yyreduce:
   case 54:
 
 /* Line 1806 of yacc.c  */
-#line 334 "syntax.y"
+#line 335 "syntax.y"
     {
 				//printf("Exp -> LP Exp RP\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2156,7 +2157,7 @@ yyreduce:
   case 55:
 
 /* Line 1806 of yacc.c  */
-#line 339 "syntax.y"
+#line 340 "syntax.y"
     {
 				//printf("Exp -> Exp MINUS Exp\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -2167,7 +2168,7 @@ yyreduce:
   case 56:
 
 /* Line 1806 of yacc.c  */
-#line 344 "syntax.y"
+#line 345 "syntax.y"
     {
 				//printf("Exp -> NOT Exp\n");
 				(yyval.node_value) = create_tree(2, (yyvsp[(1) - (2)].node_value), (yyvsp[(2) - (2)].node_value));
@@ -2178,7 +2179,7 @@ yyreduce:
   case 57:
 
 /* Line 1806 of yacc.c  */
-#line 349 "syntax.y"
+#line 350 "syntax.y"
     {
 				//printf("Exp -> ID LP Args RP\n");
 				(yyval.node_value) = create_tree(4, (yyvsp[(1) - (4)].node_value), (yyvsp[(2) - (4)].node_value), (yyvsp[(3) - (4)].node_value), (yyvsp[(4) - (4)].node_value));
@@ -2189,7 +2190,7 @@ yyreduce:
   case 58:
 
 /* Line 1806 of yacc.c  */
-#line 354 "syntax.y"
+#line 355 "syntax.y"
     {
 				//printf("Exp -> ID LP RP\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2200,7 +2201,7 @@ yyreduce:
   case 59:
 
 /* Line 1806 of yacc.c  */
-#line 359 "syntax.y"
+#line 360 "syntax.y"
     {
 				//printf("Exp -> Exp LB Exp RB\n");
 				(yyval.node_value) = create_tree(4, (yyvsp[(1) - (4)].node_value), (yyvsp[(2) - (4)].node_value), (yyvsp[(3) - (4)].node_value), (yyvsp[(4) - (4)].node_value));
@@ -2211,7 +2212,7 @@ yyreduce:
   case 60:
 
 /* Line 1806 of yacc.c  */
-#line 364 "syntax.y"
+#line 365 "syntax.y"
     {
 				//printf("Exp -> Exp DOT ID\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2222,7 +2223,7 @@ yyreduce:
   case 61:
 
 /* Line 1806 of yacc.c  */
-#line 369 "syntax.y"
+#line 370 "syntax.y"
     {
 				//printf("Exp -> ID(%s)\n", $1->content.str_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2233,7 +2234,7 @@ yyreduce:
   case 62:
 
 /* Line 1806 of yacc.c  */
-#line 374 "syntax.y"
+#line 375 "syntax.y"
     {
 				//printf("Exp -> INT(%d)\n", $1->content.int_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2244,7 +2245,7 @@ yyreduce:
   case 63:
 
 /* Line 1806 of yacc.c  */
-#line 379 "syntax.y"
+#line 380 "syntax.y"
     {
 				//printf("Exp -> FLOAT(%f)\n", $1->content.float_value);
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2255,21 +2256,21 @@ yyreduce:
   case 64:
 
 /* Line 1806 of yacc.c  */
-#line 384 "syntax.y"
+#line 385 "syntax.y"
     {}
     break;
 
   case 65:
 
 /* Line 1806 of yacc.c  */
-#line 385 "syntax.y"
+#line 386 "syntax.y"
     {}
     break;
 
   case 66:
 
 /* Line 1806 of yacc.c  */
-#line 387 "syntax.y"
+#line 388 "syntax.y"
     {
 				//printf("Args -> Exp COMMA Args\n");
 				(yyval.node_value) = create_tree(3, (yyvsp[(1) - (3)].node_value), (yyvsp[(2) - (3)].node_value), (yyvsp[(3) - (3)].node_value));
@@ -2280,7 +2281,7 @@ yyreduce:
   case 67:
 
 /* Line 1806 of yacc.c  */
-#line 392 "syntax.y"
+#line 393 "syntax.y"
     {
 				//printf("Args -> Exp\n");
 				(yyval.node_value) = create_tree(1, (yyvsp[(1) - (1)].node_value));
@@ -2291,7 +2292,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 2295 "syntax.tab.c"
+#line 2296 "syntax.tab.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2529,7 +2530,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 399 "syntax.y"
+#line 400 "syntax.y"
 
 
 
@@ -2694,17 +2695,19 @@ int main(int argc, char** argv) {
 	if (argc < 2) { /* just read stdin */
 		yylex();
 	}
-	for (i=1; i<argc; i++) {
+	for (i=1; i<argc-1; i++) {
 		FILE *f = fopen(argv[i], "r");
 		if (!f) {
 			perror(argv[i]);
 			return 1;
 		}
+		//FILE *fp2 = fopen(argv[i], "w+");
 		yyrestart(f);
 		//yylex();
 		yyparse();
 		fclose(f);
 	}
+	fp2 = fopen(argv[2], "a+");
 	if(error_num == 0) {
 		//traverse(&print_node, root, 0);
 		add_read_write();

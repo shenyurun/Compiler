@@ -9,6 +9,7 @@
 #include "hash_table.h"
 #include "assert.h"
 #include "IR.h"
+#include "mips.h"
 //global table
 InterCodes irtable = NULL;
 %}
@@ -560,17 +561,19 @@ int main(int argc, char** argv) {
 	if (argc < 2) { /* just read stdin */
 		yylex();
 	}
-	for (i=1; i<argc; i++) {
+	for (i=1; i<argc-1; i++) {
 		FILE *f = fopen(argv[i], "r");
 		if (!f) {
 			perror(argv[i]);
 			return 1;
 		}
+		//FILE *fp2 = fopen(argv[i], "w+");
 		yyrestart(f);
 		//yylex();
 		yyparse();
 		fclose(f);
 	}
+	fp2 = fopen(argv[2], "a+");
 	if(error_num == 0) {
 		//traverse(&print_node, root, 0);
 		add_read_write();

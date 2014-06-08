@@ -118,6 +118,7 @@ static char* reg_name[] = {
 	"$ra"
 };
 
+FILE *fp2;
 
 //generate operands
 Operands mips_new_label(int label_no);

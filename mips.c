@@ -10,7 +10,7 @@
 #include "mips.h"
 
 #define RAMDOM_ALLOC 999
-#define MIPS_FRAMESIZE 64
+#define MIPS_FRAMESIZE 128
 
 //global variables
 Variable vars[100];
@@ -25,11 +25,12 @@ int var_num = 0;//total var number
 Instructions func_lw = NULL;
 int local_level = 0;
 int locals[10] = {0};
-FILE *fp2;
+//FILE *fp2;
 int relieve = 0;
+int cur_regid = -1;
 
 void gen_mips(InterCodes table){
-	fp2 = fopen("output.s", "w+");
+	//fp2 = fopen("output.s", "w+");
 	InterCodes curcode = NULL;
 	Instructions curinst = NULL;
 	assert(table != NULL);
@@ -76,6 +77,7 @@ Instructions gen_inst(InterCode icode){
 			s2 = mips_new_addr(reg_no, 0);
 			inst = mips_gen_two(MIPS_SW, s1, s2);
 			instable = link_inst(instable, inst);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := *y
@@ -88,6 +90,7 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_LW, s1, s2);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op1, s1->u.reg_no);
+			//cur_regid = reg_no;
 			return instable;
 		}
 		//*x := *y
@@ -107,6 +110,7 @@ Instructions gen_inst(InterCode icode){
 			free_reg(reg_no, -1);
 			//free_reg(reg_no_1, -1);
 			instable = link_inst(instable, inst);
+			cur_regid = reg_no;
 			return instable;
 		}
 		reg_no = get_reg(instable, op1, 0);
@@ -151,6 +155,7 @@ Instructions gen_inst(InterCode icode){
 			s3 = mips_new_reg(29);
 			inst = mips_gen_three(MIPS_ADD, s1, s2, s3);
 			instable = link_inst(instable, inst);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//TODO:x = *y + *z
@@ -171,6 +176,7 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_three(MIPS_ADD, s1, s1, s3);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := #k + y
@@ -230,6 +236,7 @@ Instructions gen_inst(InterCode icode){
 		inst = mips_gen_three(MIPS_ADD, s1, s2, s3);
 		instable = link_inst(instable, inst);
 		reg_no = store_reg(op3, s1->u.reg_no);
+		cur_regid = reg_no;
 		return instable;
 	case IR_SUB:
 		op1 = icode->u.binop.op1;
@@ -530,6 +537,7 @@ Instructions gen_inst(InterCode icode){
 		s1 = mips_new_label(op1->u.label_no);
 		inst = mips_gen_one(MIPS_LABEL, s1);
 		instable = link_inst(instable, inst);
+		cur_regid = reg_no;
 		return instable;
 	case IR_GOTO:
 		//j x
@@ -540,6 +548,7 @@ Instructions gen_inst(InterCode icode){
 			s1 = mips_new_func(op1->u.func_name);
 		inst = mips_gen_one(MIPS_J, s1);
 		instable = link_inst(instable, inst);
+		cur_regid = reg_no;
 		return instable;
 	case IR_RELOP:
 		op1 = icode->u.cond.relop1;
@@ -592,7 +601,7 @@ Instructions gen_inst(InterCode icode){
 			//li reg(0), j
 			reg_no_1 = get_reg(instable, NULL, 0);
 			//free_reg(reg_no_1, -1);
-			s2 = mips_new_reg(reg_no);   
+			s2 = mips_new_reg(reg_no_1);   
 			s3 = mips_new_imm(op2->u.value);
 			inst = mips_gen_two(MIPS_LI, s2, s3);
 			instable = link_inst(instable, inst);
@@ -648,7 +657,7 @@ Instructions gen_inst(InterCode icode){
 		if(op2->kind == OP_CONSTANT || op2->kind == OP_ADDRESS){
 			free_reg(reg_no_1, -1);
 		}		
-
+		cur_regid = reg_no;
 		return instable;
 	case IR_WRITE:
 		wr_label = "write";
@@ -663,6 +672,13 @@ Instructions gen_inst(InterCode icode){
 		else if(op1->kind == OP_VARIABLE){
 			//if(op1->kind == OP_VARIABLE)
 			flag = 1;
+			//TODO:What if $a0 has value(nested function)
+			//move reg(0) $a0 -> --- ->move $a0 reg(0)
+			reg_no_1 = get_reg(instable, NULL, 1);
+			s1 = mips_new_reg(reg_no_1);
+			s2 = mips_new_reg(4);
+			inst = mips_gen_two(MIPS_MOVE, s1, s2);
+			instable = link_inst(instable, inst);
 			//move $a0 reg(x)
 			reg_no = get_reg(instable, op1, flag);
 			s1 = mips_new_reg(4);
@@ -676,6 +692,12 @@ Instructions gen_inst(InterCode icode){
 			reg_no = get_reg(instable, NULL, 0);	
 			s1 = mips_new_reg(reg_no);
 			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//move reg(0) $a0 -> --- ->move $a0 reg(0)
+			reg_no_1 = get_reg(instable, NULL, 1);
+			s1 = mips_new_reg(reg_no_1);
+			s2 = mips_new_reg(4);
+			inst = mips_gen_two(MIPS_MOVE, s1, s2);
 			instable = link_inst(instable, inst);
 			//move $a0 reg(0)
 			//reg_no = get_reg(instable, op1, 0);
@@ -724,6 +746,14 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_MOVE, s1, s2);
 			instable = link_inst(instable, inst);
 		}
+		//Don't forget!!
+		//move $a0 reg(0)
+		s1 = mips_new_reg(reg_no_1);
+		s2 = mips_new_reg(4);
+		inst = mips_gen_two(MIPS_MOVE, s2, s1);
+		instable = link_inst(instable, inst);
+		free_reg(reg_no_1, -1);
+		cur_regid = reg_no;
 		return instable;
 	case IR_FUNCTION:
 		op1 = icode->u.uniop.op;
@@ -746,6 +776,7 @@ Instructions gen_inst(InterCode icode){
 		//addi $fp, $sp, framesize
 		inst = mips_gen_addi(30, 29, MIPS_FRAMESIZE);
 		instable = link_inst(instable, inst);
+		cur_regid = reg_no;
 		return instable; 
 	case IR_CALL:
 		//store all live variable.
@@ -779,6 +810,7 @@ Instructions gen_inst(InterCode icode){
 		//load all live variable
 		instable = link_inst(instable, func_lw);
 		func_lw = NULL;
+		cur_regid = reg_no;
 		return instable;
 	case IR_RETURN:
 		op1 = icode->u.uniop.op;
@@ -819,6 +851,7 @@ Instructions gen_inst(InterCode icode){
 		s3 = mips_new_reg(31);
 		inst = mips_gen_one(MIPS_JR, s3);
 		instable = link_inst(instable, inst);
+		cur_regid = reg_no;
 		return instable;
 	case IR_ARG:
 		//store all live variable 
@@ -862,6 +895,7 @@ Instructions gen_inst(InterCode icode){
 		}
 		args_num ++;
 		instable = link_inst(instable, inst); 
+		cur_regid = reg_no;
 		return instable;
 	case IR_PARAM:
 		op1 = icode->u.uniop.op;
@@ -879,19 +913,20 @@ Instructions gen_inst(InterCode icode){
 			instable = link_inst(instable, inst); 
 		}
 		params_num++;
+		cur_regid = reg_no;
 		return instable;
 	case IR_DEC:
 		//eg. DEC v1 12
 		//sw reg(v1), vardec_count($sp)
 		//TODO:Is it necessary??
-		op1 = icode->u.assign.left;
+		/*op1 = icode->u.assign.left;
 		reg_no = get_reg(instable, op1, 1);
 		s1 = mips_new_reg(reg_no);
 		s2 = mips_new_addr(29, vardec_count); 
 		vardec_count += icode->u.assign.right->u.value;
 		inst = mips_gen_two(MIPS_SW, s1, s2);
 		instable = link_inst(instable, inst);
-		return instable;
+		return instable;*/
 		break;
 	default:
 		printf("Unknown IR type!\n");
@@ -1015,7 +1050,7 @@ int alloc_reg(int id, int flg){
 			return i;
 		}
 	}
-	//TODO:if there's no free register, try to find one with a temp
+	//TODO:if there's no free register, try to sweep away some temps
 	relieve++;
 	if(relieve%2 == 1){
 		for(i=8; i<16; i++){
@@ -1023,7 +1058,7 @@ int alloc_reg(int id, int flg){
 			//	continue;
 			if(regs[i]->enable == 1 && regs[i]->used == 1){
 				//if the register is a temp variable
-				if(regs[i]->flag == 1){
+				if(regs[i]->flag == 1 && i != cur_regid){
 					if(regs[i]->use_id == RAMDOM_ALLOC){
 						free_reg(i, regs[i]->use_id);
 					}
