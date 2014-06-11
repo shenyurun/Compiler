@@ -28,6 +28,10 @@ int locals[10] = {0};
 //FILE *fp2;
 int relieve = 0;
 int cur_regid = -1;
+//int toload = 0;
+int call_count = 0;
+int stack_off[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//int args_off[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void gen_mips(InterCodes table){
 	//fp2 = fopen("output.s", "w+");
@@ -77,7 +81,7 @@ Instructions gen_inst(InterCode icode){
 			s2 = mips_new_addr(reg_no, 0);
 			inst = mips_gen_two(MIPS_SW, s1, s2);
 			instable = link_inst(instable, inst);
-			cur_regid = reg_no;
+			//cur_regid = reg_no;
 			return instable;
 		}
 		//x := *y
@@ -90,7 +94,7 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_LW, s1, s2);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op1, s1->u.reg_no);
-			//cur_regid = reg_no;
+			cur_regid = reg_no;
 			return instable;
 		}
 		//*x := *y
@@ -110,7 +114,7 @@ Instructions gen_inst(InterCode icode){
 			free_reg(reg_no, -1);
 			//free_reg(reg_no_1, -1);
 			instable = link_inst(instable, inst);
-			cur_regid = reg_no;
+			//cur_regid = reg_no;
 			return instable;
 		}
 		reg_no = get_reg(instable, op1, 0);
@@ -122,6 +126,7 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_LI, s1, s2);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op1, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y
@@ -134,6 +139,7 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_MOVE, s1, s2);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op1, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		printf("Unknown ASSIGN!!\n");
@@ -144,10 +150,37 @@ Instructions gen_inst(InterCode icode){
 		if(op1 == NULL || op2 == NULL || op3 == NULL)
 			return NULL;
 		//handle result reg
-		reg_no = get_reg(instable, op3, 0);
-		s1 = mips_new_reg(reg_no);
-		//TODO:x = &y + z
+		//reg_no = get_reg(instable, op3, 0);
+		//s1 = mips_new_reg(reg_no);
+		//have to load value from stack
+		//lw reg(x) offset($sp)
+		if(op1->toload == 1){
+			//int offset;
+			reg_no = get_reg(instable, op1, 1);
+			if(op1->kind == OP_TEMP)
+				s3 = mips_new_addr(29, tmps[op1->u.temp_no]->offset);
+			else if(op1->kind == OP_VARIABLE)
+				s3 = mips_new_addr(29, vars[op2->u.var_no]->offset);
+			s2 = mips_new_reg(reg_no);
+			inst = mips_gen_two(MIPS_LW, s2, s3);
+			instable = link_inst(instable, inst);
+		}
+		//lw reg(y) offset($sp)
+		if(op2->toload == 1){
+			reg_no = get_reg(instable, op2, 1);
+			if(op2->kind == OP_TEMP)
+				s3 = mips_new_addr(29, tmps[op2->u.temp_no]->offset);
+			else if(op2->kind == OP_VARIABLE)
+				s3 = mips_new_addr(29, vars[op2->u.var_no]->offset);
+			s2 = mips_new_reg(reg_no);
+			inst = mips_gen_two(MIPS_LW, s2, s3);
+			instable = link_inst(instable, inst);
+		}
+		//x := &y + z
 		if(op1->kind == OP_REFERENCE && op2->kind == OP_TEMP){
+			reg_no = get_reg(instable, op3, 0);
+			regs[reg_no]->tostore = 1;
+			s1 = mips_new_reg(reg_no);
 			//add reg(x), reg(z), $sp
 			reg_no = get_reg(instable, op2, 0);
 			//printf("reg no: %d\n", reg_no);
@@ -155,11 +188,15 @@ Instructions gen_inst(InterCode icode){
 			s3 = mips_new_reg(29);
 			inst = mips_gen_three(MIPS_ADD, s1, s2, s3);
 			instable = link_inst(instable, inst);
+			//reg_no = store_reg(op3, s1->u.reg_no);
+			//Maybe I should push it into $sp...
 			cur_regid = reg_no;
 			return instable;
 		}
-		//TODO:x = *y + *z
+		//x := *y + *z
 		if(op1->kind == OP_ADDRESS && op2->kind == OP_ADDRESS){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
 			//lw reg(x), 0(reg(y))   
 			reg_no = get_reg(instable, op1, 0);
 			s2 = mips_new_addr(reg_no, 0);
@@ -179,10 +216,52 @@ Instructions gen_inst(InterCode icode){
 			cur_regid = reg_no;
 			return instable;
 		}
-		//x := #k + y
-		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT){
+		//x := *y + z
+		if(op1->kind == OP_ADDRESS && op2->kind != OP_ADDRESS && op2->kind != OP_CONSTANT){
 			if(op2->kind == OP_VARIABLE)
 				flag = 1;
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(y))   
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//add reg(x), reg(x), reg(z)
+			reg_no = get_reg(instable, op2, flag);
+			s3 = mips_new_reg(reg_no);
+			inst = mips_gen_three(MIPS_ADD, s1, s1, s3);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := y + *z
+		if(op2->kind == OP_ADDRESS && op1->kind != OP_ADDRESS && op1->kind != OP_CONSTANT){
+			if(op1->kind == OP_VARIABLE)
+				flag = 1;
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(z))   
+			reg_no = get_reg(instable, op2, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//add reg(x), reg(x), reg(y)
+			reg_no = get_reg(instable, op1, flag);
+			s3 = mips_new_reg(reg_no);
+			inst = mips_gen_three(MIPS_ADD, s1, s1, s3);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := #k + y
+		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT && op2->kind != OP_ADDRESS){
+			if(op2->kind == OP_VARIABLE)
+				flag = 1;
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
 			//addi reg(x), reg(y), k
 			s2 = mips_new_imm(op1->u.value);
 			reg_no = get_reg(instable, op2, flag);
@@ -190,12 +269,15 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_three(MIPS_ADDI, s1, s3, s2);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y + #k
-		if(op1->kind != OP_CONSTANT && op2->kind == OP_CONSTANT){
+		if(op2->kind == OP_CONSTANT && op1->kind != OP_CONSTANT && op1->kind != OP_ADDRESS){
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
 			//addi reg(x), reg(y), k
 			s3 = mips_new_imm(op2->u.value);
 			reg_no = get_reg(instable, op1, flag);
@@ -203,22 +285,57 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_three(MIPS_ADDI, s1, s2, s3);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := *y + #j
+		if(op1->kind == OP_ADDRESS && op2->kind == OP_CONSTANT){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(y))  
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//addi reg(x), reg(x), j
+			s4 = mips_new_imm(op2->u.value);
+			inst = mips_gen_three(MIPS_ADDI, s1, s1, s4);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := #k + *z
+		if(op2->kind == OP_ADDRESS && op1->kind == OP_CONSTANT){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(z))  
+			reg_no = get_reg(instable, op2, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//addi reg(x), reg(x), k
+			s4 = mips_new_imm(op1->u.value);
+			inst = mips_gen_three(MIPS_ADDI, s1, s1, s4);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := #k + #j
 		if(op1->kind == OP_CONSTANT && op2->kind == OP_CONSTANT){
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);//use a register temporarily
-			free_reg(reg_no, -1);
-			s2 = mips_new_reg(reg_no);
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//addi reg(x), reg(0), j
+			//addi reg(x), reg(x), j
 			s4 = mips_new_imm(op2->u.value);
-			inst = mips_gen_three(MIPS_ADDI, s1, s2, s4);
+			inst = mips_gen_three(MIPS_ADDI, s1, s1, s4);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y + z
@@ -233,6 +350,8 @@ Instructions gen_inst(InterCode icode){
 		s2 = mips_new_reg(reg_no);
 		reg_no = get_reg(instable, op2, flag);
 		s3 = mips_new_reg(reg_no);
+		reg_no = get_reg(instable, op3, 0);
+		s1 = mips_new_reg(reg_no);
 		inst = mips_gen_three(MIPS_ADD, s1, s2, s3);
 		instable = link_inst(instable, inst);
 		reg_no = store_reg(op3, s1->u.reg_no);
@@ -244,32 +363,33 @@ Instructions gen_inst(InterCode icode){
 		op3 = icode->u.binop.result;
 		if(op1 == NULL || op2 == NULL || op3 == NULL)
 			return NULL;
-		reg_no = get_reg(instable, op3, 0);
-		s1 = mips_new_reg(reg_no);
-		//TODO: Could it be possible??
+		//reg_no = get_reg(instable, op3, 0);
+		//s1 = mips_new_reg(reg_no);
 		//x := #k - y
-		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT){
+		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT && op2->kind != OP_ADDRESS){
 			if(op2->kind == OP_VARIABLE)
 				flag = 1;
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);            
-			s2 = mips_new_reg(reg_no);
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//sub reg(x), reg(0), reg(y)
+			//sub reg(x), reg(x), reg(y)
 			reg_no = get_reg(instable, op2, flag);
 			s4 = mips_new_reg(reg_no);
-			inst = mips_gen_three(MIPS_SUB, s1, s2, s4);
+			inst = mips_gen_three(MIPS_SUB, s1, s1, s4);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y - #k
-		if(op1->kind != OP_CONSTANT && op2->kind == OP_CONSTANT){
+		if(op2->kind == OP_CONSTANT && op1->kind != OP_CONSTANT && op1->kind != OP_ADDRESS){
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
 			//addi reg(x), reg(y), -k
 			s3 = mips_new_imm(-op2->u.value);
 			reg_no = get_reg(instable, op1, flag);
@@ -281,22 +401,24 @@ Instructions gen_inst(InterCode icode){
 		}
 		//x := #k - #j
 		if(op1->kind == OP_CONSTANT && op2->kind == OP_CONSTANT){
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);            
-			s2 = mips_new_reg(reg_no);
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//addi reg(x), reg(0), -j
+			//addi reg(x), reg(x), -j
 			s4 = mips_new_imm(-op2->u.value);
-			inst = mips_gen_three(MIPS_ADDI, s1, s2, s4);
+			inst = mips_gen_three(MIPS_ADDI, s1, s1, s4);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
-		//TODO:x = *y - *z
+		//x = *y - *z
 		if(op1->kind == OP_ADDRESS && op2->kind == OP_ADDRESS){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
 			//lw reg(x), 0(reg(y))   
 			reg_no = get_reg(instable, op1, 0);
 			s2 = mips_new_addr(reg_no, 0);
@@ -313,6 +435,47 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_three(MIPS_SUB, s1, s1, s3);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x = *y - #j
+		if(op1->kind == OP_ADDRESS && op2->kind == OP_CONSTANT){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(y))  
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//addi reg(x), reg(x), -j
+			s4 = mips_new_imm(-op2->u.value);
+			inst = mips_gen_three(MIPS_ADDI, s1, s1, s4);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x = #k - *z
+		if(op2->kind == OP_ADDRESS && op1->kind == OP_CONSTANT){
+			reg_no = get_reg(instable, op3, 0);
+			s1 = mips_new_reg(reg_no);
+			//lw reg(x), 0(reg(z))  
+			reg_no = get_reg(instable, op2, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//li reg(0), k
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);
+			s4 = mips_new_imm(op1->u.value);
+			inst = mips_gen_two(MIPS_LI, s3, s4);
+			instable = link_inst(instable, inst);			
+			//sub reg(x), reg(0), reg(x)
+			inst = mips_gen_three(MIPS_SUB, s1, s3, s1);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y - z
@@ -327,9 +490,12 @@ Instructions gen_inst(InterCode icode){
 			flag = 1;
 		reg_no = get_reg(instable, op2, flag);
 		s3 = mips_new_reg(reg_no);
+		reg_no = get_reg(instable, op3, 0);
+		s1 = mips_new_reg(reg_no);
 		inst = mips_gen_three(MIPS_SUB, s1, s2, s3);
 		instable = link_inst(instable, inst);
 		reg_no = store_reg(op3, s1->u.reg_no);
+		cur_regid = reg_no;
 		return instable;
 	case IR_MUL:
 		op1 = icode->u.binop.op1;
@@ -340,66 +506,60 @@ Instructions gen_inst(InterCode icode){
 		reg_no = get_reg(instable, op3, 0);
 		s1 = mips_new_reg(reg_no);
 		//x := #k * y
-		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT){
+		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT  && op2->kind != OP_ADDRESS){
 			if(op2->kind == OP_VARIABLE)
 				flag = 1;
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);              
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//mul reg(x), reg(0), reg(y)
+			//mul reg(x), reg(x), reg(y)
 			reg_no = get_reg(instable, op2, flag);
 			s4 = mips_new_reg(reg_no);
-			inst = mips_gen_three(MIPS_MUL, s1, s2, s4);
+			inst = mips_gen_three(MIPS_MUL, s1, s1, s4);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y * #k
-		if(op1->kind != OP_CONSTANT && op2->kind == OP_CONSTANT){
+		if(op2->kind == OP_CONSTANT && op1->kind != OP_CONSTANT && op1->kind != OP_ADDRESS){
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);            
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op2->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//mul reg(x), reg(y), reg(0)
+			//mul reg(x), reg(y), reg(x)
 			reg_no = get_reg(instable, op1, flag);
 			s4 = mips_new_reg(reg_no);
-			inst = mips_gen_three(MIPS_MUL, s1, s4, s2);
+			inst = mips_gen_three(MIPS_MUL, s1, s4, s1);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := #k * #j
 		if(op1->kind == OP_CONSTANT && op2->kind == OP_CONSTANT){
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);              
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
 			//li reg(0), j
-			reg_no_1 = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);
-			free_reg(reg_no_1, -1);           
-			s4 = mips_new_reg(reg_no_1);
+			reg_no = get_reg(instable, NULL, 0);
+			free_reg(reg_no, -1);          
+			s4 = mips_new_reg(reg_no);
 			s3 = mips_new_imm(op2->u.value);
 			inst = mips_gen_two(MIPS_LI, s4, s3);
 			instable = link_inst(instable, inst);
-			//mul reg(x), reg(0), reg(0)
-			inst = mips_gen_three(MIPS_MUL, s1, s2, s4);
+			//mul reg(x), reg(x), reg(0)
+			inst = mips_gen_three(MIPS_MUL, s1, s1, s4);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
-		//TODO:x = *y * *z
+		//x := *y * *z
 		if(op1->kind == OP_ADDRESS && op2->kind == OP_ADDRESS){
 			//lw reg(x), 0(reg(y))   
 			reg_no = get_reg(instable, op1, 0);
@@ -408,6 +568,7 @@ Instructions gen_inst(InterCode icode){
 			instable = link_inst(instable, inst);
 			//lw reg(0), 0(reg(z))
 			reg_no = get_reg(instable, NULL, 0);
+			free_reg(reg_no, -1);
 			s3 = mips_new_reg(reg_no);    
 			reg_no = get_reg(instable, op2, 0);
 			s4 = mips_new_addr(reg_no, 0);
@@ -417,6 +578,49 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_three(MIPS_MUL, s1, s1, s3);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := *y * #j
+		if(op1->kind == OP_ADDRESS && op2->kind == OP_CONSTANT){
+			//lw reg(x), 0(reg(y))  
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//li reg(0), j
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);
+			s4 = mips_new_imm(op2->u.value);
+			inst = mips_gen_two(MIPS_LI, s3, s4);
+			instable = link_inst(instable, inst);	
+			//mul reg(x), reg(x), reg(0)
+			inst = mips_gen_three(MIPS_MUL, s1, s1, s3);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := #k * *z
+		if(op2->kind == OP_ADDRESS && op1->kind == OP_CONSTANT){
+			//lw reg(x), 0(reg(z))  
+			reg_no = get_reg(instable, op2, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//li reg(0), k
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);
+			s4 = mips_new_imm(op1->u.value);
+			inst = mips_gen_two(MIPS_LI, s3, s4);
+			instable = link_inst(instable, inst);	
+			//mul reg(x), reg(x), k
+			inst = mips_gen_three(MIPS_MUL, s1, s1, s3);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y * z
@@ -434,6 +638,7 @@ Instructions gen_inst(InterCode icode){
 		inst = mips_gen_three(MIPS_MUL, s1, s2, s3);
 		instable = link_inst(instable, inst);
 		reg_no = store_reg(op3, s1->u.reg_no);
+		cur_regid = reg_no;
 		return instable;
 	case IR_DIV:
 		op1 = icode->u.binop.op1;
@@ -444,72 +649,139 @@ Instructions gen_inst(InterCode icode){
 		reg_no = get_reg(instable, op3, 0);
 		s1 = mips_new_reg(reg_no);
 		//x := #k / y
-		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT){
+		if(op1->kind == OP_CONSTANT && op2->kind != OP_CONSTANT && op2->kind != OP_ADDRESS){
 			if(op2->kind == OP_VARIABLE)
 				flag = 1;
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0); 
-			free_reg(reg_no, -1);             
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//div reg(0), reg(y)
+			//div reg(x), reg(y)
 			reg_no = get_reg(instable, op2, flag);
 			s4 = mips_new_reg(reg_no);
-			inst = mips_gen_two(MIPS_DIV, s2, s4);
+			inst = mips_gen_two(MIPS_DIV, s1, s4);
 			instable = link_inst(instable, inst);
 			//mflo reg(x)
 			inst = mips_gen_one(MIPS_MFLO, s1);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y / #k
-		if(op1->kind != OP_CONSTANT && op2->kind == OP_CONSTANT){
+		if(op2->kind == OP_CONSTANT && op1->kind != OP_CONSTANT && op1->kind != OP_ADDRESS){
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);        
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op2->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
-			//div reg(y), reg(0)
+			//div reg(y), reg(x)
 			reg_no = get_reg(instable, op1, flag);
 			s4 = mips_new_reg(reg_no);
-			inst = mips_gen_two(MIPS_DIV, s4, s2);
+			inst = mips_gen_two(MIPS_DIV, s4, s1);
 			instable = link_inst(instable, inst);
 			//mflo reg(x)
 			inst = mips_gen_one(MIPS_MFLO, s1);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
-		//x := #k * #j
+		//x := #k / #j
 		if(op1->kind == OP_CONSTANT && op2->kind == OP_CONSTANT){
-			//li reg(0), k
-			reg_no = get_reg(instable, NULL, 0);          
-			s2 = mips_new_reg(reg_no);
+			//li reg(x), k
 			s3 = mips_new_imm(op1->u.value);
-			inst = mips_gen_two(MIPS_LI, s2, s3);
+			inst = mips_gen_two(MIPS_LI, s1, s3);
 			instable = link_inst(instable, inst);
 			//li reg(0), j
-			reg_no_1 = get_reg(instable, NULL, 0);
-			free_reg(reg_no, -1);
-			free_reg(reg_no_1, -1);             
-			s4 = mips_new_reg(reg_no_1);
+			reg_no = get_reg(instable, NULL, 0);             
+			s4 = mips_new_reg(reg_no);
 			s3 = mips_new_imm(op2->u.value);
 			inst = mips_gen_two(MIPS_LI, s4, s3);
 			instable = link_inst(instable, inst);
-			//div reg(0), reg(0)
-			inst = mips_gen_two(MIPS_DIV, s2, s4);
+			//div reg(x), reg(0)
+			inst = mips_gen_two(MIPS_DIV, s1, s4);
 			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
 			//mflo reg(x)
 			inst = mips_gen_one(MIPS_MFLO, s1);
 			instable = link_inst(instable, inst);
 			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := *y / *z
+		if(op1->kind == OP_ADDRESS && op2->kind == OP_ADDRESS){
+			//lw reg(x), 0(reg(y))   
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//lw reg(0), 0(reg(z))
+			reg_no = get_reg(instable, op2, 0);
+			s4 = mips_new_addr(reg_no, 0);
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);    
+			inst = mips_gen_two(MIPS_LW, s3, s4);
+			instable = link_inst(instable, inst);
+			//div reg(x), reg(0)
+			inst = mips_gen_two(MIPS_DIV, s1, s3);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			//mflo reg(x)
+			inst = mips_gen_one(MIPS_MFLO, s1);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := *y / #j
+		if(op1->kind == OP_ADDRESS && op2->kind == OP_CONSTANT){
+			//lw reg(x), 0(reg(y))  
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//li reg(0), j
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);
+			s4 = mips_new_imm(op2->u.value);
+			inst = mips_gen_two(MIPS_LI, s3, s4);
+			instable = link_inst(instable, inst);	
+			//div reg(x), reg(0)
+			inst = mips_gen_two(MIPS_DIV, s1, s3);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			//mflo reg(x)
+			inst = mips_gen_one(MIPS_MFLO, s1);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
+			return instable;
+		}
+		//x := #k / *z
+		if(op2->kind == OP_ADDRESS && op1->kind == OP_CONSTANT){
+			//lw reg(x), 0(reg(z))  
+			reg_no = get_reg(instable, op2, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+			//li reg(0), k
+			reg_no = get_reg(instable, NULL, 0);
+			s3 = mips_new_reg(reg_no);
+			s4 = mips_new_imm(op1->u.value);
+			inst = mips_gen_two(MIPS_LI, s3, s4);
+			instable = link_inst(instable, inst);	
+			//div reg(0), reg(x)
+			inst = mips_gen_two(MIPS_DIV, s3, s1);
+			instable = link_inst(instable, inst);
+			free_reg(reg_no, -1);
+			//mflo reg(x)
+			inst = mips_gen_one(MIPS_MFLO, s1);
+			instable = link_inst(instable, inst);
+			reg_no = store_reg(op3, s1->u.reg_no);
+			cur_regid = reg_no;
 			return instable;
 		}
 		//x := y / z
@@ -530,6 +802,7 @@ Instructions gen_inst(InterCode icode){
 		inst = mips_gen_one(MIPS_MFLO, s1);
 		instable = link_inst(instable, inst);
 		reg_no = store_reg(op3, s1->u.reg_no);
+		cur_regid = reg_no;
 		return instable;
 	case IR_LABEL:
 		//x:
@@ -669,22 +942,6 @@ Instructions gen_inst(InterCode icode){
 			s2 = mips_new_imm(op1->u.value);
 			inst = mips_gen_two(MIPS_LI, s1, s2);
 		}
-		else if(op1->kind == OP_VARIABLE){
-			//if(op1->kind == OP_VARIABLE)
-			flag = 1;
-			//TODO:What if $a0 has value(nested function)
-			//move reg(0) $a0 -> --- ->move $a0 reg(0)
-			reg_no_1 = get_reg(instable, NULL, 1);
-			s1 = mips_new_reg(reg_no_1);
-			s2 = mips_new_reg(4);
-			inst = mips_gen_two(MIPS_MOVE, s1, s2);
-			instable = link_inst(instable, inst);
-			//move $a0 reg(x)
-			reg_no = get_reg(instable, op1, flag);
-			s1 = mips_new_reg(4);
-			s2 = mips_new_reg(reg_no);
-			inst = mips_gen_two(MIPS_MOVE, s1, s2);
-		}
 		else if(op1->kind == OP_ADDRESS){
 			//lw reg(0), 0(reg(x))
 			reg_no = get_reg(instable, op1, 0);
@@ -693,6 +950,8 @@ Instructions gen_inst(InterCode icode){
 			s1 = mips_new_reg(reg_no);
 			inst = mips_gen_two(MIPS_LW, s1, s2);
 			instable = link_inst(instable, inst);
+			cur_regid = reg_no;
+			//TODO:What if $a0 has value(nested function)
 			//move reg(0) $a0 -> --- ->move $a0 reg(0)
 			reg_no_1 = get_reg(instable, NULL, 1);
 			s1 = mips_new_reg(reg_no_1);
@@ -701,6 +960,21 @@ Instructions gen_inst(InterCode icode){
 			instable = link_inst(instable, inst);
 			//move $a0 reg(0)
 			//reg_no = get_reg(instable, op1, 0);
+			s1 = mips_new_reg(4);
+			s2 = mips_new_reg(reg_no);
+			inst = mips_gen_two(MIPS_MOVE, s1, s2);
+		}
+		else{
+			if(op1->kind == OP_VARIABLE)
+				flag = 1;
+			//move reg(0) $a0 -> --- ->move $a0 reg(0)
+			reg_no_1 = get_reg(instable, NULL, flag);
+			s1 = mips_new_reg(reg_no_1);
+			s2 = mips_new_reg(4);
+			inst = mips_gen_two(MIPS_MOVE, s1, s2);
+			instable = link_inst(instable, inst);
+			//move $a0 reg(x)
+			reg_no = get_reg(instable, op1, flag);
 			s1 = mips_new_reg(4);
 			s2 = mips_new_reg(reg_no);
 			inst = mips_gen_two(MIPS_MOVE, s1, s2);
@@ -756,6 +1030,9 @@ Instructions gen_inst(InterCode icode){
 		cur_regid = reg_no;
 		return instable;
 	case IR_FUNCTION:
+		//TODO
+		params_num = 0;
+		//local_level++;
 		op1 = icode->u.uniop.op;
 		//func:
 		s1 = mips_new_func(op1->u.func_name);
@@ -779,6 +1056,7 @@ Instructions gen_inst(InterCode icode){
 		cur_regid = reg_no;
 		return instable; 
 	case IR_CALL:
+		local_level++;
 		//store all live variable.
 		if(args_num == 0)
 			func_lw = store_live_variable(instable);
@@ -795,14 +1073,21 @@ Instructions gen_inst(InterCode icode){
 		inst = mips_gen_two(MIPS_MOVE, s2, s3);
 		instable = link_inst(instable, inst);
 		//store the result
-		reg_no = store_reg(op1, s2->u.reg_no);	
+		reg_no = store_reg(op1, s2->u.reg_no);
+		tmps[op1->u.temp_no]->offset = (max(params_num-4, 0) + var_num + 1)*4 - stack_off[call_count];
+
+		//TODO:reg(x) could be covered in nested calls, so push it into stack: 
+		//sw reg(x) offset($sp)
+		s1 = mips_new_addr(29, (max(params_num-4, 0) + var_num + 1)*4);
+		inst = mips_gen_two(MIPS_SW, s2, s1);
+		instable = link_inst(instable, inst);
+		op1->toload = 1;
+
 		//addi $sp, $sp, max{0, 4*(n-4)}
 		s1 = mips_new_reg(29);
 		s2 = mips_new_reg(29);
 		if(args_num > 4)
 			s3 = mips_new_imm(4*(args_num-4));
-		else
-			s3 = mips_new_imm(0);
 		inst = mips_gen_three(MIPS_ADDI, s1, s2, s3);
 		//reset the args
 		args_num = 0;
@@ -813,6 +1098,7 @@ Instructions gen_inst(InterCode icode){
 		cur_regid = reg_no;
 		return instable;
 	case IR_RETURN:
+		local_level--;
 		op1 = icode->u.uniop.op;
 		//lw $ra, (framesize-4)($sp)
 		inst = mips_gen_lw(31, 29, MIPS_FRAMESIZE-4);
@@ -823,7 +1109,7 @@ Instructions gen_inst(InterCode icode){
 		//addi $ra, $ra framesize
 		inst = mips_gen_addi(29, 29, MIPS_FRAMESIZE);
 		instable = link_inst(instable, inst);
-		//move $v1 ...
+		//move $v0 ...
 		s1 = mips_new_reg(2);
 		if(op1->kind == OP_CONSTANT){
 			if(op1->u.value == 0){
@@ -841,7 +1127,7 @@ Instructions gen_inst(InterCode icode){
 		else{
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
-			//move $v1 reg(x)
+			//move $v0 reg(x)
 			reg_no = get_reg(instable, op1, flag);
 			s2 = mips_new_reg(reg_no);
 			inst = mips_gen_two(MIPS_MOVE, s1, s2);
@@ -852,6 +1138,9 @@ Instructions gen_inst(InterCode icode){
 		inst = mips_gen_one(MIPS_JR, s3);
 		instable = link_inst(instable, inst);
 		cur_regid = reg_no;
+		//TODO
+		//params_num = 0;
+		call_count = 0;
 		return instable;
 	case IR_ARG:
 		//store all live variable 
@@ -874,12 +1163,23 @@ Instructions gen_inst(InterCode icode){
 			inst = mips_gen_two(MIPS_LI, s1, s2);
 			instable = link_inst(instable, inst);
 		}
+		//What if Arg *t1??
+		else if(op1->kind == OP_ADDRESS){
+			//lw reg(0), 0(reg(x))
+			reg_no = get_reg(instable, op1, 0);
+			s2 = mips_new_addr(reg_no, 0);
+			reg_no = get_reg(instable, NULL, 0); 
+			s1 = mips_new_reg(reg_no);
+			inst = mips_gen_two(MIPS_LW, s1, s2);
+			instable = link_inst(instable, inst);
+		}
 		else{
 			if(op1->kind == OP_VARIABLE)
 				flag = 1;
 			reg_no = get_reg(instable, op1, flag);
 			s1 = mips_new_reg(reg_no);
 		}
+
 		//store args according to arg numbers
 		if(args_num < 4){
 			//store args into registers
@@ -889,12 +1189,16 @@ Instructions gen_inst(InterCode icode){
 		}
 		else{
 			//store args into stack
-			//sw reg(x), (4(x+n-3))($sp)
-			s2 = mips_new_addr(29, 4*(args_num - 4)); 
+			//sw reg(x), (4(n-4))($sp)
+			s2 = mips_new_addr(29, 4*(args_num - 4));
 			inst = mips_gen_two(MIPS_SW, s1, s2);
+			//args_off[args_num-4] = 4*(args_num - 4); 
+			//printf("args_off[%d]: %d", args_num, args_off[args_num-4]);
 		}
-		args_num ++;
+		args_num++;
 		instable = link_inst(instable, inst); 
+		//if(op1->kind == OP_CONSTANT || op1->kind == OP_ADDRESS)
+		//	free_reg(reg_no, -1);
 		cur_regid = reg_no;
 		return instable;
 	case IR_PARAM:
@@ -902,14 +1206,29 @@ Instructions gen_inst(InterCode icode){
 		assert(op1->u.param_name != NULL);
 		//int var_id = hash_get(op1->u.param_name)->id;
 		int var_id = op1->u.var_no;
+		//printf("Param num: %d\n", params_num);
 		if(params_num < 4){
 			set_variable_reg(var_id, 4+params_num, 1);
 		}
 		else{
-			//lw $sp framesize+4+4(n-4)
+			//lw reg(x) (offset)($sp)
 			reg_no = get_reg(instable, op1, 0);
-			//inst = mips_gen_lw(reg_no, 29, MIPS_FRAMESIZE+4+4*(params_num-4));
-			inst = mips_gen_lw(reg_no, 29, MIPS_FRAMESIZE + 4*(params_num - 4));
+			assert(op1->kind == OP_VARIABLE);
+			//int i;
+			//int var_count = 0;
+			/*for(i=0; i<100; i++){
+				if(vars[i] != NULL && vars[i]->reg_no != -1){
+					//var_count++;
+					if(vars[i]->reg_no == reg_no)
+						break;
+				}
+			}
+			//printf("Param is the %dth var\n", var_count);
+			assert(i<100);*/
+			//printf("Param offset: %d\n", -vars[i]->offset);
+			//inst = mips_gen_lw(reg_no, 29, MIPS_FRAMESIZE - vars[i]->offset);
+			inst = mips_gen_lw(reg_no, 29, MIPS_FRAMESIZE + 4*(params_num-4));
+			//printf("param_off[%d]: %d", params_num, args_off[params_num-4]);
 			instable = link_inst(instable, inst); 
 		}
 		params_num++;
@@ -946,6 +1265,14 @@ int get_reg(Instructions inst, Operand op, int flag){
 		//free_reg(reg_no, -1);
 		return reg_no;
 	}
+
+	var_num = 0;
+	int i;
+	for(i=1; i<100; i++){
+		if(vars[i] != NULL && vars[i]->reg_no != -1)
+			var_num++;
+	}
+
 	if(op->kind == OP_VARIABLE || op->kind == OP_PARAM || op->kind == OP_REFERENCE){
 		if(op->kind == OP_VARIABLE || op->kind == OP_REFERENCE)
 			id = op->u.var_no;
@@ -957,7 +1284,7 @@ int get_reg(Instructions inst, Operand op, int flag){
 			vars[id] = (Variable)malloc(sizeof(struct Variable_));
 			vars[id]->var_id = id;
 			//offset increase by 4
-			vars[id]->offset = (locals[local_level]++) * 4;
+			vars[id]->offset = -(++locals[local_level]) * 4 - 4*(var_num + max(params_num-4, 0));
 			vars[id]->reg_no = -1;
 		}
 		//if var is not in register
@@ -976,6 +1303,7 @@ int get_reg(Instructions inst, Operand op, int flag){
 		}
 		return vars[id]->reg_no;
 	}
+
 	if(op->kind == OP_TEMP || op->kind == OP_ADDRESS){
 		id = op->u.temp_no;
 		assert(id != 0);
@@ -983,7 +1311,11 @@ int get_reg(Instructions inst, Operand op, int flag){
 		if(tmps[id] == NULL){
 			tmps[id] = (Temp)malloc(sizeof(struct Temp_));
 			tmps[id]->temp_id = id;
-			tmps[id]->reg_no = -1;
+			tmps[id]->offset = -(++locals[local_level]) * 4 - 4*(var_num + max(params_num-4, 0));
+			//TODO
+			reg_no = alloc_reg(id, 1);
+			assert(reg_no >= 0 && reg_no < 32);
+			tmps[id]->reg_no = reg_no;
 		}
 		//if tmp is not in register
 		if(tmps[id]->reg_no == -1){
@@ -1000,16 +1332,30 @@ int get_reg(Instructions inst, Operand op, int flag){
 int store_reg(Operand op, int cur_reg){
 	int reg_no = -1;
 	int id;
-	if(op == NULL || op->kind == OP_TEMP)
+	//if(op == NULL || op->kind == OP_TEMP)
+	if(op == NULL)
 		return cur_reg;
+	if(op->kind == OP_TEMP){
+		//regs[cur_reg]->tostore = 1;
+		return cur_reg;
+	}
+
 	assert(op->kind == OP_VARIABLE);
+
+	var_num = 0;
+	int i;
+	for(i=1; i<100; i++){
+		if(vars[i] != NULL && vars[i]->reg_no != -1)
+			var_num++;
+	}
+
 	id = op->u.var_no;
 	assert(id > 0);
 	//if var is not in table
 	if(vars[id] == NULL){
 		vars[id] = (Variable)malloc(sizeof(struct Variable_));
 		vars[id]->var_id = id;
-		vars[id]->offset = (locals[local_level]++) * 4;
+		vars[id]->offset = -(++locals[local_level]) * 4 - 4*(var_num + max(params_num-4, 0));
 		vars[id]->reg_no = -1;
 	}
 	//if var is not in register
@@ -1037,8 +1383,9 @@ void init_regs(){
 
 int alloc_reg(int id, int flg){
 	int i;
+	int count=0;
 	//find a unused register from $8-$15 and $24-$25
-	ALLOC_REG:
+	//ALLOC_REG:
 	for(i=8; i<26; i++){
 		if(i>15 && i<24)
 			continue;
@@ -1051,54 +1398,106 @@ int alloc_reg(int id, int flg){
 		}
 	}
 	//TODO:if there's no free register, try to sweep away some temps
-	relieve++;
-	if(relieve%2 == 1){
-		for(i=8; i<16; i++){
-			//if(i>15 && i<24)
-			//	continue;
-			if(regs[i]->enable == 1 && regs[i]->used == 1){
-				//if the register is a temp variable
-				if(regs[i]->flag == 1 && i != cur_regid){
-					if(regs[i]->use_id == RAMDOM_ALLOC){
-						free_reg(i, regs[i]->use_id);
-					}
-					else{
-						assert(tmps[regs[i]->use_id]->temp_id == regs[i]->use_id);
-						assert(tmps[regs[i]->use_id]->reg_no == i);
-						//remove register of the temp;
-						tmps[regs[i]->use_id]->reg_no = -1;
-						free_reg(i, regs[i]->use_id);
-						//return i;
-					}
+	//relieve++;
+	//count++;
+	//if(count > 2){
+	//	printf("Fail to allocate t0-t9 regs!\n");
+	//	goto ALLOC_RESERVED;
+	//}
+	//if(relieve%2 == 1){
+	for(i=8; i<16; i++){
+		//if(i>15 && i<24)
+		//	continue;
+		if(regs[i]->enable == 1 && regs[i]->used == 1 && regs[i]->tostore != 1){
+			//if the register is a temp variable
+			if(regs[i]->flag == 1 && i != cur_regid){
+			//if(regs[i]->flag == 1){
+				if(regs[i]->use_id == RAMDOM_ALLOC){
+					free_reg(i, regs[i]->use_id);
+				}
+				else{
+					assert(tmps[regs[i]->use_id]->temp_id == regs[i]->use_id);
+					assert(tmps[regs[i]->use_id]->reg_no == i);
+					//remove register of the temp;
+					tmps[regs[i]->use_id]->reg_no = -1;
+					free_reg(i, regs[i]->use_id);
+					//return i;
 				}
 			}
 		}
 	}
-	else{
-		for(i=24; i<26; i++){
-			//if(i>15 && i<24)
-			//	continue;
-			if(regs[i]->enable == 1 && regs[i]->used == 1){
-				//if the register is a temp variable
-				if(regs[i]->flag == 1){
-					if(regs[i]->use_id == RAMDOM_ALLOC){
-						free_reg(i, regs[i]->use_id);
-					}
-					else{
-						assert(tmps[regs[i]->use_id]->temp_id == regs[i]->use_id);
-						assert(tmps[regs[i]->use_id]->reg_no == i);
-						//remove register of the temp;
-						tmps[regs[i]->use_id]->reg_no = -1;
-						free_reg(i, regs[i]->use_id);
-						//return i;
-					}
+	//}
+	//else{
+	for(i=16; i<24; i++){
+		if(regs[i]->enable == 1 && regs[i]->used == 0){
+			assert(regs[i]->use_id == -1);
+			regs[i]->used = 1;
+			regs[i]->use_id = id;
+			regs[i]->flag = flg;
+			return i;
+		}
+	}
+	for(i=24; i<26; i++){
+		//if(i>15 && i<24)
+		//	continue;
+		if(regs[i]->enable == 1 && regs[i]->used == 1 && regs[i]->tostore != 1){
+			//if the register is a temp variable
+			if(regs[i]->flag == 1 && i != cur_regid){
+				if(regs[i]->use_id == RAMDOM_ALLOC){
+					free_reg(i, regs[i]->use_id);
+				}
+				else{
+					assert(tmps[regs[i]->use_id]->temp_id == regs[i]->use_id);
+					assert(tmps[regs[i]->use_id]->reg_no == i);
+					//remove register of the temp;
+					tmps[regs[i]->use_id]->reg_no = -1;
+					free_reg(i, regs[i]->use_id);
+					//return i;
 				}
 			}
 		}
 	}
-	goto ALLOC_REG;
-	//fail to allocate
-	printf("Fail to allocate a reg!\n");
+	//}
+	//goto ALLOC_REG;//GOTO sentence may cause dead loop!!!
+	//ALLOC_RESERVED:
+	for(i=16; i<24; i++){
+		if(regs[i]->enable == 1 && regs[i]->used == 0){
+			assert(regs[i]->use_id == -1);
+			regs[i]->used = 1;
+			regs[i]->use_id = id;
+			regs[i]->flag = flg;
+			return i;
+		}
+	}
+	for(i=16; i<24; i++){
+		if(regs[i]->enable == 1 && regs[i]->used == 1){
+			//if the register is a temp variable
+			//if(regs[i]->flag == 1 && i != cur_regid){
+			if(regs[i]->flag == 1 && i != cur_regid && regs[i]->tostore != 1){
+				if(regs[i]->use_id == RAMDOM_ALLOC){
+					free_reg(i, regs[i]->use_id);
+				}
+				else{
+					assert(tmps[regs[i]->use_id]->temp_id == regs[i]->use_id);
+					assert(tmps[regs[i]->use_id]->reg_no == i);
+					//remove register of the temp;
+					tmps[regs[i]->use_id]->reg_no = -1;
+					free_reg(i, regs[i]->use_id);
+					//return i;
+				}
+			}
+		}
+	}
+	for(i=16; i<24; i++){
+		if(regs[i]->enable == 1 && regs[i]->used == 0){
+			assert(regs[i]->use_id == -1);
+			regs[i]->used = 1;
+			regs[i]->use_id = id;
+			regs[i]->flag = flg;
+			return i;
+		}
+	}
+	printf("What? Regs're far from enough...\n");
 	return -1;
 }
 
@@ -1131,7 +1530,7 @@ int free_reg(int reg_no, int id){
 Instructions store_live_variable(Instructions table){
 	Instructions lw_list = NULL;
 	Instructions inst = NULL;
-	//int var_num = 0;//total var number
+
 	var_num = 0;
 	int var_count = 0;//count var to calculate offset
 	int i;
@@ -1140,18 +1539,20 @@ Instructions store_live_variable(Instructions table){
 			var_num++;
 	}
 	//addi $sp (-4(n+1))($sp)
-	inst = mips_gen_addi(29, 29, -4*(var_num + max(params_num-4, 0) + 1));
+	inst = mips_gen_addi(29, 29, -4*(var_num + max(params_num-4, 0) + (++call_count) + 1));
 	table = link_inst(table, inst);
+	stack_off[call_count] = 4*(var_num + max(params_num-4, 0) + (call_count) + 1);
 	//sw & lw handle together
 	for(i=0; i<100; i++){
 		if(vars[i] != NULL && vars[i]->reg_no != -1){
-			//TODO
 			//sw reg(i) (4x)($sp)
 			inst = mips_gen_sw(vars[i]->reg_no, 29, (max(params_num-4, 0) + var_count)*4);
 			table = link_inst(table, inst);
 			//lw reg(i) (4x)($sp)
 			inst = mips_gen_lw(vars[i]->reg_no, 29, (max(params_num-4, 0) + var_count)*4);
 			lw_list = link_inst(lw_list, inst);
+			//TODO
+			vars[i]->offset = (max(params_num-4, 0) + var_count)*4;
 			var_count++;
 		}
 	}
@@ -1162,8 +1563,10 @@ Instructions store_live_variable(Instructions table){
 	inst = mips_gen_lw(31, 29, (max(params_num-4, 0) + var_count)*4);
 	lw_list = link_inst(lw_list, inst);
 	//addi $sp $sp 4(n+1)
-	inst = mips_gen_addi(29, 29, 4*(max(params_num-4, 0) + var_num + 1));
+	inst = mips_gen_addi(29, 29, 4*(var_num + max(params_num-4, 0) + (call_count) + 1));
 	lw_list = link_inst(lw_list, inst);
+	//TODO
+	//call_count = 0;
 	return lw_list;
 }
 
@@ -1302,94 +1705,124 @@ void output_inst(Instruction inst){
 	if(inst->kind == ONE_OP){
 		switch(inst->u.oneop.instype){
 		case MIPS_LABEL:
-			if(inst->u.oneop.op->kind == MIPS_OP_LABEL)
+			if(inst->u.oneop.op->kind == MIPS_OP_LABEL){
 				fprintf(fp2, "label%d:\n", inst->u.oneop.op->u.label_no);
-			else if(inst->u.oneop.op->kind == MIPS_OP_FUNC)
+				printf("label%d:\n", inst->u.oneop.op->u.label_no);
+			}
+			else if(inst->u.oneop.op->kind == MIPS_OP_FUNC){
 				fprintf(fp2, "\n%s:\n", inst->u.oneop.op->u.func_name);
+				printf("\n%s:\n", inst->u.oneop.op->u.func_name);
+			}
 			else
 				printf("LABEL is wrong?\n");
 			return;
 		case MIPS_J:
-			fputs("\tj ", fp2); 
+			fputs("\tj ", fp2);
+			printf("\tj ");
 			break;
 		case MIPS_JAL:
-			fputs("\tjal ", fp2); 
+			fputs("\tjal ", fp2);
+			printf("\tjal "); 
 			break;
 		case MIPS_JR:
 			fputs("\tjr ", fp2); 
+			printf("\tjr ");
 			break;
 		case MIPS_MFLO:
 			fputs("\tmflo ", fp2); 
+			printf("\tmflo ");
 			break;
 		}
 		output_mips_op(inst->u.oneop.op);
 		fputs("\n", fp2);
+		printf("\n");
 	}
 	else if(inst->kind == TWO_OP){
 		switch(inst->u.twoop.instype){
 		case MIPS_LI:
 			fputs("\tli ", fp2); 
+			printf("\tli ");
 			break;
 		case MIPS_LA:
 			fputs("\tla ", fp2); 
+			printf("\tla ");
 			break;
 		case MIPS_MOVE:
 			fputs("\tmove ", fp2); 
+			printf("\tmove ");
 			break;
 		case MIPS_LW:
 			fputs("\tlw ", fp2); 
+			printf("\tlw ");
 			break;
 		case MIPS_SW:
 			fputs("\tsw ", fp2); 
+			printf("\tsw ");
 			break;
 		case MIPS_DIV:
 			fputs("\tdiv ", fp2); 
+			printf("\tdiv ");
 			break;
 		}
 		output_mips_op(inst->u.twoop.op1); 
 		fputs(", ", fp2);
+		printf(", ");
 		output_mips_op(inst->u.twoop.op2);
 		fputs("\n", fp2);
+		printf("\n");
 	}
 	else{
 		switch(inst->u.threeop.instype){
 		case MIPS_ADDI:
-			fputs("\taddi ", fp2); 
+			fputs("\taddi ", fp2);
+			printf("\taddi ");
 			break;
 		case MIPS_ADD:
 			fputs("\tadd ", fp2); 
+			printf("\tadd ");
 			break;
 		case MIPS_SUB:
 			fputs("\tsub ", fp2); 
+			printf("\tsub ");
 			break;
 		case MIPS_MUL:
 			fputs("\tmul ", fp2); 
+			printf("\tmul ");
 			break;
 		case MIPS_BEQ:
 			fputs("\tbeq ", fp2); 
+			printf("\tbeq ");
 			break;
 		case MIPS_BNE:
-			fputs("\tbne ", fp2); 
+			fputs("\tbne ", fp2);
+			printf("\tbne ");
 			break;
 		case MIPS_BGT:
-			fputs("\tbgt ", fp2); 
+			fputs("\tbgt ", fp2);
+			printf("\tbgt ");
 			break;
 		case MIPS_BLT:
-			fputs("\tblt ", fp2); 
+			fputs("\tblt ", fp2);
+			printf("\tblt ");
 			break;
 		case MIPS_BGE:
-			fputs("\tbge ", fp2); 
+			fputs("\tbge ", fp2);
+			printf("\tbge ");
 			break;
 		case MIPS_BLE:
-			fputs("\tble ", fp2); 
+			fputs("\tble ", fp2);	
+			printf("\tble ");
 			break;
 		}
 		output_mips_op(inst->u.threeop.op1); 
 		fputs(", ", fp2);
+		printf(", ");
 		output_mips_op(inst->u.threeop.op2); 
 		fputs(", ", fp2);
+		printf(", ");
 		output_mips_op(inst->u.threeop.op3); 
 		fputs("\n", fp2);
+		printf("\n");
 	}
 }
 
@@ -1397,20 +1830,25 @@ void output_mips_op(Operands op){
 	switch(op->kind){
 	case MIPS_OP_LABEL:
 		fprintf(fp2, "label%d", op->u.label_no);
+		printf("label%d", op->u.label_no);
 		break;
 	case MIPS_OP_FUNC:
 		fprintf(fp2, "%s", op->u.func_name);
+		printf("%s", op->u.func_name);
 		break;
 	case MIPS_OP_REG:
 		//fprintf(fp2, "$%d", op->u.reg_no);
 		fprintf(fp2, "%s", reg_name[op->u.reg_no]);
+		printf("%s", reg_name[op->u.reg_no]);
 		break;
 	case MIPS_OP_IMM:
 		fprintf(fp2, "%d", op->u.imm_value);
+		printf("%d", op->u.imm_value);
 		break;
 	case MIPS_OP_ADDR:
 		//fprintf(fp2, "%d($%d)", op->u.addr.offset, op->u.addr.reg_no);
 		fprintf(fp2, "%d(%s)", op->u.addr.offset, reg_name[op->u.addr.reg_no]);
+		printf("%d(%s)", op->u.addr.offset, reg_name[op->u.addr.reg_no]);
 	    	break;
 	}
 }

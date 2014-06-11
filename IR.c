@@ -11,7 +11,7 @@
 
 int temp_count = 0;
 int label_count = 0;
-FILE *fp;
+//FILE *fp;
 
 //output
 void output_operand(Operand op) {
@@ -473,8 +473,14 @@ InterCodes translate_Exp(NodePtr node, Operand place) {
 		FieldList func_node = hash_get(func_name);
 		assert(func_node != NULL);
 		Operand f1 = new_function(func_name);
-		if(place != NULL)
+		if(place != NULL && place->kind != OP_ADDRESS)
 			code1 = gen_assign(IR_CALL, place, f1);
+		else if(place != NULL && place->kind == OP_ADDRESS){
+			Operand t2 = new_temp();
+			code1 = gen_assign(IR_CALL, t2, f1);
+			code2 = gen_assign(IR_ASSIGN, place, t2);
+			code1 = link_ir(code1, code2);
+		}
 		else{
 			Operand t2 = new_temp();
 			code1 = gen_assign(IR_CALL, t2, f1);
@@ -508,8 +514,14 @@ InterCodes translate_Exp(NodePtr node, Operand place) {
 			code1 = link_ir(code1, code2);
 		}
 		Operand f1 = new_function(func_name);
-		if(place != NULL)
+		if(place != NULL && place->kind != OP_ADDRESS)
 			code3 = gen_assign(IR_CALL, place, f1);
+		else if(place != NULL && place->kind == OP_ADDRESS){
+			Operand t2 = new_temp();
+			code1 = gen_assign(IR_CALL, t2, f1);
+			code2 = gen_assign(IR_ASSIGN, place, t2);
+			code1 = link_ir(code1, code2);
+		}
 		else{
 			Operand t2 = new_temp();
 			code3 = gen_assign(IR_CALL, t2, f1);
@@ -1193,7 +1205,7 @@ int optimize_ir(InterCodes *ir) {
 			}
 			break;
 		case IR_CALL:
-			nextcode = curcode->next;
+			/*nextcode = curcode->next;
 			if(nextcode->code->kind == IR_ASSIGN){
 				op1 = curcode->code->u.assign.left;
 				op2 = nextcode->code->u.assign.right;
@@ -1201,7 +1213,7 @@ int optimize_ir(InterCodes *ir) {
 					curcode->code->u.assign.left = nextcode->code->u.assign.left;
 					remove_ir(ir, nextcode);
 				}
-			}
+			}*/
 			break;
 		case IR_RELOP:
 			op1 = curcode->code->u.cond.relop1;

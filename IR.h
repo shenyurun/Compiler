@@ -17,6 +17,8 @@ typedef struct InterCodes_* InterCodes;
 struct Operand_ {
 	OpType kind;
 	int flag;
+	int toload;//for lab4
+	//int tostore;
 	union {
 		int var_no;
 		int value;
@@ -104,5 +106,8 @@ InterCodes link_ir(InterCodes l1, InterCodes l2);
 int remove_ir(InterCodes *table, InterCodes icode);
 int get_structure_size(TypePtr type);
 RelType get_relop(NodePtr node);
+
+//global variables
+FILE *fp;
 
 #endif

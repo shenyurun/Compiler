@@ -53,6 +53,7 @@ struct Operands_ {
 			int offset;
 		}addr;
 	}u;
+	//int toload;
 };
 
 struct Instruction_ {
@@ -91,6 +92,7 @@ struct Variable_ {
 struct Temp_ {
 	int temp_id;
 	int reg_no;
+	int offset;
 };
 
 struct Register_ {
@@ -98,6 +100,7 @@ struct Register_ {
 	int enable;	//Can it be used?
 	int used;	//have it been used?
 	int flag;	//mark var or tmp
+	int tostore;
 };
 
 

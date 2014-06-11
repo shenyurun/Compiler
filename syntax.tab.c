@@ -2707,6 +2707,7 @@ int main(int argc, char** argv) {
 		yyparse();
 		fclose(f);
 	}
+	//fp = fopen(argv[2], "a+");
 	fp2 = fopen(argv[2], "a+");
 	if(error_num == 0) {
 		//traverse(&print_node, root, 0);
@@ -2719,6 +2720,10 @@ int main(int argc, char** argv) {
 		output_ir(irtable);
 		//output_read_write();
 		gen_mips(irtable);
+		//$s0-$s7 should be free away
+		int i;
+		for(i=16; i<24; i++)
+			free_reg(i, -1);
 	}
 }
 
